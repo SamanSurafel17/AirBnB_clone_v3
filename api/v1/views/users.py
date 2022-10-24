@@ -1,60 +1,70 @@
 #!/usr/bin/python3
-"""
-    Flask route that returns json response
-"""
+"""Index file"""
+
+from flask import jsonify, abort, request, make_response
+from models import storage
 from api.v1.views import app_views
-from flask import abort, jsonify, request
-from models import storage, CNC
-from flasgger.utils import swag_from
+from models.user import User
 
 
-@app_views.route('/users/', methods=['GET', 'POST'])
-@swag_from('swagger_yaml/users_no_id.yml', methods=['GET', 'POST'])
-def users_no_id(user_id=None):
-    """
-        users route that handles http requests with no ID given
-    """
-
-    if request.method == 'GET':
-        all_users = storage.all('User')
-        all_users = [obj.to_json() for obj in all_users.values()]
-        return jsonify(all_users)
-
-    if request.method == 'POST':
-        req_json = request.get_json()
-        if req_json is None:
-            abort(400, 'Not a JSON')
-        if req_json.get('email') is None:
-            abort(400, 'Missing email')
-        if req_json.get('password') is None:
-            abort(400, 'Missing password')
-        User = CNC.get('User')
-        new_object = User(**req_json)
-        new_object.save()
-        return jsonify(new_object.to_json()), 201
+@app_views.route('/users', methods=['GET'],
+                 strict_slashes=False)
+@app_views.route('/users/<user_id>', methods=['GET'],
+                 strict_slashes=False)
+def users_get(user_id=None):
+    """Returns states in storage"""
+    if user_id is None:
+        if request.method == 'GET':
+            users_dict = [v.to_dict()
+                          for k, v in
+                          storage.all(User).items()]
+            return jsonify(users_dict)
+    else:
+        user = storage.get(User, user_id)
+        if user is None:
+            abort(404)
+        return jsonify(user.to_dict())
 
 
-@app_views.route('/users/<user_id>', methods=['GET', 'DELETE', 'PUT'])
-@swag_from('swagger_yaml/users_id.yml', methods=['GET', 'DELETE', 'PUT'])
-def user_with_id(user_id=None):
-    """
-        users route that handles http requests with ID given
-    """
-    user_obj = storage.get('User', user_id)
-    if user_obj is None:
-        abort(404, 'Not found')
+@app_views.route('/users/<user_id>', methods=['DELETE'],
+                 strict_slashes=False)
+def users_del(user_id):
+    user = storage.get(User, user_id)
+    if user is None:
+        abort(404)
+    storage.delete(user)
+    storage.save()
+    return (jsonify({}), 200)
 
-    if request.method == 'GET':
-        return jsonify(user_obj.to_json())
 
-    if request.method == 'DELETE':
-        user_obj.delete()
-        del user_obj
-        return jsonify({}), 200
+@app_views.route('/users', methods=['POST'],
+                 strict_slashes=False)
+def users_post():
+    user_dict = request.get_json(silent=True)
+    if user_dict is None:
+        return (jsonify({'error': 'Not a JSON'}), 400)
+    else:
+        if 'email' not in user_dict:
+            return (jsonify({'error': 'Missing email'}), 400)
+        if 'password' not in user_dict:
+            return (jsonify({'error': 'Missing password'}), 400)
+        new_user = User(**user_dict)
+        new_user.save()
+        return (jsonify(new_user.to_dict()), 201)
 
-    if request.method == 'PUT':
-        req_json = request.get_json()
-        if req_json is None:
-            abort(400, 'Not a JSON')
-        user_obj.bm_update(req_json)
-        return jsonify(user_obj.to_json()), 200
+
+@app_views.route('/users/<user_id>', methods=['PUT'],
+                 strict_slashes=False)
+def users_put(user_id):
+    user = storage.get(User, user_id)
+    if user is None:
+        abort(404)
+    user_dict = request.get_json(silent=True)
+    if user_dict is None:
+        return (jsonify({'error': 'Not a JSON'}), 400)
+    else:
+        for k, v in user_dict.items():
+            if k not in ['id', 'created_at', 'updated_at', 'email']:
+                setattr(user, k, v)
+            user.save()
+            return (jsonify(user.to_dict()), 200)
