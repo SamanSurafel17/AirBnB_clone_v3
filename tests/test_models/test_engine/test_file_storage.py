@@ -71,6 +71,33 @@ test_file_storage.py'])
 @unittest.skipIf(models.storage_t == 'db', "not testing file storage")
 class TestFileStorage(unittest.TestCase):
     """Test the FileStorage class"""
+
+    @classmethod
+    def setUpClass(cls):
+        """sets up the class"""
+        cls.user = User()
+        cls.user.save()
+        cls.bm_obj = BaseModel()
+        cls.bm_obj.save()
+
+    def setUp(self):
+        """initializes new user for testing"""
+        self.user = TestFileStorage.user
+        self.bm_obj = TestFileStorage.bm_obj
+
+    def test_count_cls(self):
+        """Tests count method with class input arg"""
+        count_user = storage.count('User')
+        expected = 1
+        self.assertEqual(expected, count_user)
+
+    def test_get_cls_id(self):
+        """Tests get method with class and id inputs"""
+        duplicate = storage.get('User', self.user.id)
+        expected = self.user.id
+        actual = duplicate.id
+        self.assertEqual(expected, actual)
+
     def test_all_returns_dict(self):
         """Test that all returns the FileStorage.__objects attr"""
         storage = FileStorage()
@@ -111,41 +138,3 @@ class TestFileStorage(unittest.TestCase):
         with open("file.json", "r") as f:
             js = f.read()
         self.assertEqual(json.loads(string), json.loads(js))
-
-    def test_get(self):
-        """test that get returns an object of a given class by id."""
-        storage = models.storage
-        obj = State(name='Michigan')
-        obj.save()
-        self.assertEqual(obj.id, storage.get(State, obj.id).id)
-        self.assertEqual(obj.name, storage.get(State, obj.id).name)
-        self.assertIsNot(obj, storage.get(State, obj.id + 'op'))
-        self.assertIsNone(storage.get(State, obj.id + 'op'))
-        self.assertIsNone(storage.get(State, 45))
-        self.assertIsNone(storage.get(None, obj.id))
-        self.assertIsNone(storage.get(int, obj.id))
-        with self.assertRaises(TypeError):
-            storage.get(State, obj.id, 'op')
-        with self.assertRaises(TypeError):
-            storage.get(State)
-        with self.assertRaises(TypeError):
-            storage.get()
-
-    def test_count(self):
-        """test that count returns the number of objects of a given class."""
-        storage = models.storage
-        self.assertIs(type(storage.count()), int)
-        self.assertIs(type(storage.count(None)), int)
-        self.assertIs(type(storage.count(int)), int)
-        self.assertIs(type(storage.count(State)), int)
-        self.assertEqual(storage.count(), storage.count(None))
-        State(name='Lagos').save()
-        self.assertGreater(storage.count(State), 0)
-        self.assertEqual(storage.count(), storage.count(None))
-        a = storage.count(State)
-        State(name='Enugu').save()
-        self.assertGreater(storage.count(State), a)
-        Amenity(name='Free WiFi').save()
-        self.assertGreater(storage.count(), storage.count(State))
-        with self.assertRaises(TypeError):
-            storage.count(State, 'op')

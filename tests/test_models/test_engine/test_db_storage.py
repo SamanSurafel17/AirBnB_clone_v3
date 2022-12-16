@@ -25,7 +25,6 @@ classes = {"Amenity": Amenity, "City": City, "Place": Place,
 
 class TestDBStorageDocs(unittest.TestCase):
     """Tests to check the documentation and style of DBStorage class"""
-    @classmethod
     def setUpClass(cls):
         """Set up for the doc tests"""
         cls.dbs_f = inspect.getmembers(DBStorage, inspect.isfunction)
@@ -69,8 +68,39 @@ test_db_storage.py'])
 
 
 @unittest.skipIf(models.storage_t != 'db', "not testing db storage")
-class TestDBStorage(unittest.TestCase):
+class TestDbStorage(unittest.TestCase):
     """Test the FileStorage class"""
+    def setUpClass(cls):
+        storage.delete_all()
+        cls.s = State(name="California")
+        cls.c = City(state_id=cls.s.id,
+                     name="San Francisco")
+        cls.u = User(email="betty@holbertonschool.com",
+                     password="pwd")
+        cls.p1 = Place(user_id=cls.u.id,
+                       city_id=cls.c.id,
+                       name="a house")
+        cls.p2 = Place(user_id=cls.u.id,
+                       city_id=cls.c.id,
+                       name="a house two")
+        cls.a1 = Amenity(name="Wifi")
+        cls.a2 = Amenity(name="Cable")
+        cls.a3 = Amenity(name="Bucket Shower")
+        objs = [cls.s, cls.c, cls.u, cls.p1, cls.p2, cls.a1, cls.a2, cls.a3]
+        for obj in objs:
+            obj.save()
+
+    def setUp(self):
+        """initializes new user for testing"""
+        self.s = TestDbStorage.s
+        self.c = TestDbStorgae.c
+        self.u = TestDbStorage.u
+        self.p1 = TestDbStorage.p1
+        self.p2 = TestDbStorage.p2
+        self.a1 = TestDbStorage.a1
+        self.a2 = TestDbStorage.a2
+        self.a3 = TestDbStorage.a3
+
     def test_all_returns_dict(self):
         """Test that all returns a dictionaty"""
         self.assertIs(type(models.storage.all()), dict)
@@ -84,40 +114,14 @@ class TestDBStorage(unittest.TestCase):
     def test_save(self):
         """Test that save properly saves objects to file.json"""
 
-    def test_get(self):
-        """test that get returns an object of a given class by id."""
-        storage = models.storage
-        obj = State(name='Michigan')
-        obj.save()
-        self.assertEqual(obj.id, storage.get(State, obj.id).id)
-        self.assertEqual(obj.name, storage.get(State, obj.id).name)
-        self.assertIsNot(obj, storage.get(State, obj.id + 'op'))
-        self.assertIsNone(storage.get(State, obj.id + 'op'))
-        self.assertIsNone(storage.get(State, 45))
-        self.assertIsNone(storage.get(None, obj.id))
-        self.assertIsNone(storage.get(int, obj.id))
-        with self.assertRaises(TypeError):
-            storage.get(State, obj.id, 'op')
-        with self.assertRaises(TypeError):
-            storage.get(State)
-        with self.assertRaises(TypeError):
-            storage.get()
+    def test_count_all(self):
+        """Test if count without no class"""
+        count_all = storage.count()
+        expected = 8
+        self.asseertEqual(expected, count_all)
 
-    def test_count(self):
-        """test that count returns the number of objects of a given class."""
-        storage = models.storage
-        self.assertIs(type(storage.count()), int)
-        self.assertIs(type(storage.count(None)), int)
-        self.assertIs(type(storage.count(int)), int)
-        self.assertIs(type(storage.count(State)), int)
-        self.assertEqual(storage.count(), storage.count(None))
-        State(name='Lagos').save()
-        self.assertGreater(storage.count(State), 0)
-        self.assertEqual(storage.count(), storage.count(None))
-        a = storage.count(State)
-        State(name='Enugu').save()
-        self.assertGreater(storage.count(State), a)
-        Amenity(name='Free WiFi').save()
-        self.assertGreater(storage.count(), storage.count(State))
-        with self.assertRaises(TypeError):
-            storage.count(State, 'op')
+    def test_get_place(self):
+        """Test if get returns properly"""
+        temp = storage.get('Place', self.p1.id)
+        expected = self.p1.id
+        self.assertEqual(expected, temp.id)
